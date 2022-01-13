@@ -1,0 +1,6 @@
+com\kyanja\model\Record.class
+com\kyanja\App.class
+com\kyanja\processor\CustomItemProcessor.class
+com\kyanja\processor\RecordItemProcessor.class
+com\kyanja\mapper\ReportFieldSetMapper.class
+com\kyanja\model\Report.class

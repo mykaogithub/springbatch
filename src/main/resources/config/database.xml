@@ -1,0 +1,99 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:jpa="http://www.springframework.org/schema/c"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+	http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+	http://www.springframework.org/schema/jdbc
+	http://www.springframework.org/schema/jdbc/spring-jdbc-3.2.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+
+    <!--Load profile guarantee jdbc.properties Under the same folder as the current file-->
+    <context:property-placeholder location="jdbc.properties"/>
+    <!--XML Configure automatic scanning, and change it to your own path -->
+    <context:component-scan base-package="com.kyanja"/>
+
+
+    <!--Configuration data source I use here mysql 8.0.20 Low version xaDataSourceClassName Of value Convert value to com.mysql.jdbc.jdbc2.optional.MysqlXADataSource-->
+    <bean id="abstractXADataSource" class="com.atomikos.jdbc.AtomikosDataSourceBean" init-method="init" destroy-method="close" abstract="true">
+        <property name="xaDataSourceClassName" value="com.mysql.cj.jdbc.MysqlXADataSource"/>
+        <property name="poolSize" value="10"/>
+        <property name="minPoolSize" value="10"/>
+        <property name="maxPoolSize" value="30"/>
+        <property name="borrowConnectionTimeout" value="60"/>
+        <property name="reapTimeout" value="20"/>
+        <property name="maxIdleTime" value="60"/>
+        <property name="maintenanceInterval" value="60"/>
+        <property name="testQuery">
+            <value>select 1</value>
+        </property>
+    </bean>
+
+    <!--Basic database configuration information-->
+    <bean id="dataSourceBatch" parent="abstractXADataSource">
+        <property name="uniqueResourceName">
+            <value>dataSourceBatch</value>
+        </property>
+        <!--Database driven com.mysql.jdbc.jdbc2.optional.MysqlXADataSource-->
+<!--     !-I use it here mysql8.0.1 Low version xaDataSourceClassName Of value Convert value to com.mysql.jdbc.jdbc2.optional.MysqlXADataSource-->
+        <property name="xaDataSourceClassName" value="com.mysql.cj.jdbc.MysqlXADataSource"/>
+        <property name="xaProperties">
+            <props>
+                <prop key="URL">${jdbc.batch.url}</prop>
+                <prop key="user">${jdbc.batch.username}</prop>
+                <prop key="password">${jdbc.batch.password}</prop>
+            </props>
+        </property>
+    </bean>
+
+    <!--Log data source-->
+    <!--Basic database configuration information-->
+    <bean id="dataSourceRepository" parent="abstractXADataSource">
+        <property name="uniqueResourceName">
+            <value>dataSourceRepository</value>
+        </property>
+        <!--Database driven-->
+<!--        !-I use it here mysql8.0.1 Low version xaDataSourceClassName Of value Convert value to com.mysql.jdbc.jdbc2.optional.MysqlXADataSource&ndash;&gt;-->
+        <property name="xaDataSourceClassName" value="com.mysql.cj.jdbc.MysqlXADataSource"/>
+        <property name="xaProperties">
+            <props>
+                <prop key="URL">${jdbc.repository.url}</prop>
+                <prop key="user">${jdbc.repository.username}</prop>
+                <prop key="password">${jdbc.repository.password}</prop>
+            </props>
+        </property>
+    </bean>
+
+    <!--To configure atomikos Transaction manager-->
+    <bean id="atomiksTransactionManager" class="com.atomikos.icatch.jta.UserTransactionManager" init-method="init" destroy-method="close">
+        <property name="forceShutdown" value="false"/>
+    </bean>
+    <!--Configure local transaction manager-->
+    <bean id="atomiksUserTransaction" class="com.atomikos.icatch.jta.UserTransactionImp">
+        <property name="transactionTimeout" value="300000"/>
+    </bean>
+
+    <!--jta Transaction manager-->
+    <bean id="springTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
+        <property name="transactionManager" ref="atomiksTransactionManager"/>
+        <property name="userTransaction" ref="atomiksUserTransaction"/>
+        <property name="allowCustomIsolationLevels" value="true"/>
+    </bean>
+
+
+    <bean id="transactionManager"
+          class="org.springframework.batch.support.transaction.ResourcelessTransactionManager" />
+
+    <!-- create job-meta tables automatically -->
+    <jdbc:initialize-database data-source="dataSourceRepository">
+        <jdbc:script location="/org/springframework/batch/core/schema-drop-mysql.sql" />
+        <jdbc:script location="/org/springframework/batch/core/schema-mysql.sql" />
+    </jdbc:initialize-database>
+
+
+
+
+
+
+</beans>
